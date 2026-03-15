@@ -1,0 +1,218 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,68 @@
++name: Campus Life Assistant CI/CD
++on:
++  push:
++    branches: [ main, campus-life-assistant ]
++  pull_request:
++    branches: [ main ]
++
++jobs:
++  build-and-test:
++    runs-on: ubuntu-latest
++    steps:
++      - name: Checkout code
++        uses: actions/checkout@v4
++
++      - name: Set up Node.js 18.x
++        uses: actions/setup-node@v4
++        with:
++          node-version: 18.x
++          cache: 'npm'
++
++      - name: Install dependencies
++        run: npm ci
++
++      - name: Lint code
++        run: npm run lint --if-present
++
++      - name: Build project
++        run: npm run build --if-present
++
++      - name: Start server (background)
++        run: npm run start & sleep 15
++
++      - name: Test Admin login (Remember Me)
++        run: |
++          RESP=$(curl -s -X POST http://localhost:3000/api/admin/login \
++            -H "Content-Type: application/json" \
++            -d '{"username":"admin","password":"admin123"}')
++          TOKEN=$(echo $RESP | jq -r .data.token)
++          if [ "$TOKEN" = "null" ]; then
++            echo "Admin login failed"
++            exit 1
++          fi
++          echo "Admin login success, token: $TOKEN"
++
++      - name: Test RBAC & Tenant API
++        run: |
++          TOKEN=$(curl -s -X POST http://localhost:3000/api/admin/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}' | jq -r .data.token)
++          # Test tenant list
++          TENANT_RESP=$(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/admin/tenants)
++          if echo $TENANT_RESP | grep -q "code.*200"; then
++            echo "Tenant API test success"
++          else
++            echo "Tenant API test failed"
++            exit 1
++          fi
++          # Test migration list
++          MIGRATION_RESP=$(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/admin/migrations/list)
++          if echo $MIGRATION_RESP | grep -q "code.*200"; then
++            echo "Migration API test success"
++          else
++            echo "Migration API test failed"
++            exit 1
++          fi
++
++      - name: Test WeChat Invite API
++        run: |
++          TOKEN=$(curl -s -X POST http://localhost:3000/api/admin/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}' | jq -r .data.token)
++          INVITE_RESP=$(curl -s -X POST http://localhost:3000/api/friend/invite \
++            -H "Content-Type: application/json" \
++            -H "Authorization: Bearer $TOKEN" \
++            -d '{"userId":"1","inviteCode":"campus2026"}')
++          if echo $INVITE_RESP | grep -q "inviteUrl"; then
++            echo "WeChat invite API test success"
++          else
++            echo "WeChat invite API test failed"
++            exit 1
++          fi
+diff --git a/server.js b/server.js
+index abcdefg..1234567 100644
+--- a/server.js
++++ b/server.js
+@@ -1,5 +1,25 @@
+ const express = require('express')
+ const app = express()
++const jwt = require('jsonwebtoken')
++app.use(express.json())
++
++// JWT config
++const JWT_SECRET = process.env.JWT_SECRET || '8f9d6e5c4b3a2s1d9f8g7h6j5k4l3m2n1b8v7c6x5d4s3a2z1q9w8e7r6t5y4u3i2o1p'
++
++// Admin login (Remember Me support)
++app.post('/api/admin/login', (req, res) => {
++  const { username, password } = req.body
++  if (username === 'admin' && password === 'admin123') {
++    const token = jwt.sign({ username, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' }) // 7天有效期（适配Remember Me）
++    res.json({ code: 200, msg: '登录成功', data: { token } })
++  } else {
++    res.json({ code: 401, msg: '账号或密码错误' })
++  }
++})
++
++// WeChat invite API
++app.post('/api/friend/invite', (req, res) => {
++  const { userId, inviteCode } = req.body
++  const inviteUrl = `https://your-domain.com/invite?code=${inviteCode || Math.random().toString(36).slice(2, 10)}`
++  res.json({ code: 200, msg: '生成邀请链接成功', data: { inviteUrl, qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(inviteUrl)}` } })
++})
+
+ // Tenant API
+ app.get('/api/admin/tenants', (req, res) => {
+@@ -10,6 +30,10 @@ app.get('/api/admin/tenants/:id', (req, res) => {
+   res.json({ code: 200, data: { id: req.params.id, name: '测试租户', status: 'active', description: '测试描述', create_time: new Date() } })
+ })
+
++// Migration API
++app.get('/api/admin/migrations/list', (req, res) => {
++  res.json({ code: 200, data: [{ id: 3, name: 'idx_admin_tenants_name', create_time: new Date() }] })
++})
++
+ // Health check
+ app.get('/api/healthz', (req, res) => {
+   res.json({ code: 200, msg: 'OK', data: { status: 'healthy' } })
+ })
+ app.get('/api/admin/health', (req, res) => {
+   res.json({ code: 200, msg: 'Admin health OK', data: { db: 'connected', migrations: 'up-to-date' } })
+ })
+
+ app.listen(3000, () => {
+   console.log('Server running on http://localhost:3000')
+ })
+diff --git a/web_app/src/views/login.vue b/web_app/src/views/login.vue
+index abcdefg..1234567 100644
+--- a/web_app/src/views/login.vue
++++ b/web_app/src/views/login.vue
+@@ -1,10 +1,35 @@
+ <template>
+   <div class="login-container">
+     <h1>校园生活助手 - 管理员登录</h1>
+     <el-form :model="loginForm" label-width="80px">
+       <el-form-item label="用户名">
+         <el-input v-model="loginForm.username"></el-input>
+       </el-form-item>
+       <el-form-item label="密码">
+         <el-input v-model="loginForm.password" type="password"></el-input>
+       </el-form-item>
++      <el-form-item>
++        <el-checkbox v-model="loginForm.rememberMe">记住登录状态</el-checkbox>
++      </el-form-item>
+       <el-form-item>
+         <el-button type="primary" @click="handleLogin">登录</el-button>
+       </el-form-item>
+     </el-form>
++    <!-- 分享入口（测试用） -->
++    <el-button type="text" @click="handleShare" style="margin-top: 20px">分享到微信</el-button>
+   </div>
+ </template>
+
+ <script>
+ export default {
+   name: 'AdminLogin',
+   data() {
+     return {
+       loginForm: {
+         username: '',
+         password: '',
++        rememberMe: false
+       }
+     }
+   },
+   methods: {
+     async handleLogin() {
+       try {
+         const res = await this.$http.post('/api/admin/login', this.loginForm)
+         if (res.code === 200) {
+           // Remember Me: localStorage / sessionStorage
+           const storage = this.loginForm.rememberMe ? localStorage : sessionStorage
+           storage.setItem('admin_token', res.data.token)
+           this.$message.success('登录成功')
+           this.$router.push('/admin/dashboard')
+         }
+       } catch (err) {
+         this.$message.error('登录失败')
+       }
+     },
++    handleShare() {
++      // Web Share API 优先，降级显示二维码
++      if (navigator.share) {
++        navigator.share({
++          title: '校园生活助手',
++          text: '邀请你使用校园生活助手',
++          url: window.location.href
++        }).catch(err => console.log('分享失败:', err))
++      } else {
++        // 调用邀请接口生成二维码
++        this.$http.post('/api/friend/invite', { userId: '1' }).then(res => {
++          this.$alert(`<img src="${res.data.qrCode}" />`, '分享二维码', {
++            dangerouslyUseHTMLString: true
++          })
++        })
++      }
++    }
+   },
++  mounted() {
++    // 自动恢复登录状态
++    const token = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token')
++    if (token) {
++      this.$http.defaults.headers.common['Authorization'] = `Bearer ${token}`
++      this.$router.push('/admin/dashboard')
++    }
++  }
+ }
+ </script>
