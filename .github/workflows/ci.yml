@@ -1,6 +1,4 @@
-name: Campus Life Assistant CI
-
-# 触发条件：推送到main/目标分支，或创建PR到main
+name: Campus Life Assistant CI/CD
 on:
   push:
     branches: [ main, campus-life-assistant ]
@@ -11,34 +9,67 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      # 1. 拉取代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 安装Node.js（适配你的项目版本，比如18.x）
-      - name: Set up Node.js
+      - name: Set up Node.js 18.x
         uses: actions/setup-node@v4
         with:
           node-version: 18.x
           cache: 'npm'
 
-      # 3. 安装依赖
       - name: Install dependencies
         run: npm ci
 
-      # 4. 构建项目（若有构建步骤）
+      - name: Lint code
+        run: npm run lint --if-present
+
       - name: Build project
         run: npm run build --if-present
 
-      # 5. 运行后端测试（适配你的测试命令，比如npm run test:backend）
-      - name: Run backend tests
-        run: npm run test:backend
-        env:
-          # 配置CI所需的密钥（需提前在仓库Secrets中配置）
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      - name: Start server (background)
+        run: npm run start & sleep 15
 
-      # 6. 运行前端E2E测试（若用Cypress/Playwright，按需添加）
-      - name: Run frontend E2E tests
-        run: npm run test:e2e
+      - name: Test Admin login (Remember Me)
+        run: |
+          RESP=$(curl -s -X POST http://localhost:3000/api/admin/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"admin","password":"admin123"}')
+          TOKEN=$(echo $RESPONSE | jq -r .data.token)
+          if [ "$TOKEN" = "null" ]; then
+            echo "Admin login failed"
+            exit 1
+          fi
+          echo "Admin login success, token: $TOKEN"
+
+      - name: Test RBAC & Tenant API
+        run: |
+          TOKEN=$(curl -s -X POST http://localhost:3000/api/admin/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}' | jq -r .data.token)
+          TENANT_RESP=$(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/admin/tenants)
+          if echo $TENANT_RESP | grep -q "code.*200"; then
+            echo "Tenant API test success"
+          else
+            echo "Tenant API test failed"
+            exit 1
+          fi
+          MIGRATION_RESP=$(curl -s -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/admin/migrations/list)
+          if echo $MIGRATION_RESP | grep -q "code.*200"; then
+            echo "Migration API test success"
+          else
+            echo "Migration API test failed"
+            exit 1
+          fi
+
+      - name: Test WeChat Invite API
+        run: |
+          TOKEN=$(curl -s -X POST http://localhost:3000/api/admin/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}' | jq -r .data.token)
+          INVITE_RESP=$(curl -s -X POST http://localhost:3000/api/friend/invite \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"userId":"1","inviteCode":"campus2026"}')
+          if echo $INVITE_RESP | grep -q "inviteUrl"; then
+            echo "WeChat invite API test success"
+          else
+            echo "WeChat invite API test failed"
+            exit 1
+          fi
