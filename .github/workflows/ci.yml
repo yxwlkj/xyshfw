@@ -1,0 +1,44 @@
+name: Campus Life Assistant CI
+
+# 触发条件：推送到main/目标分支，或创建PR到main
+on:
+  push:
+    branches: [ main, campus-life-assistant ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 拉取代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装Node.js（适配你的项目版本，比如18.x）
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'npm'
+
+      # 3. 安装依赖
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. 构建项目（若有构建步骤）
+      - name: Build project
+        run: npm run build --if-present
+
+      # 5. 运行后端测试（适配你的测试命令，比如npm run test:backend）
+      - name: Run backend tests
+        run: npm run test:backend
+        env:
+          # 配置CI所需的密钥（需提前在仓库Secrets中配置）
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+
+      # 6. 运行前端E2E测试（若用Cypress/Playwright，按需添加）
+      - name: Run frontend E2E tests
+        run: npm run test:e2e
