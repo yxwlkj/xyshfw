@@ -1,0 +1,57 @@
+:root {
+  --green: #07C160;
+}
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto; background: linear-gradient(135deg, #f5f7fb 0%, #f9fbff 60%, #ffffff 100%); }
+.topbar { height: 56px; display:flex; align-items:center; justify-content:center; font-weight:600; background: #fff; border-bottom: 1px solid #eee; position: sticky; top: 0; z-index: 100; }
+.layout { display:grid; grid-template-columns: 320px 1fr 320px; height: calc(100vh - 56px); }
+.left, .center, .right { overflow:auto; padding:8px; background:white; }
+.left, .right { box-shadow: 0 2px 6px rgba(0,0,0,.05); border-radius:6px; }
+.center { box-shadow: inset 0 0 0 rgba(0,0,0,0); }
+.section-title { color:#999; font-size:12px; margin:8px 0; }
+.list { display:flex; flex-direction:column; }
+.list .item { display:flex; align-items:center; padding:8px 6px; border-bottom:1px solid #eee; cursor:pointer; }
+.list .item:hover { background:#f9f9f9; }
+.avatar { width:28px; height:28px; border-radius:4px; margin-right:8px; }
+.chat-header { padding:6px 0; font-weight:600; text-align:center; }
+.messages { padding:8px; height: calc(100% - 120px); overflow:auto; }
+.input-area { display:flex; padding:8px; gap:8px; }
+.input-area input { flex:1; padding:8px; border-radius:6px; border:1px solid #ddd; }
+.input-area button { padding:8px 12px; border:none; background:var(--green); color:white; border-radius:6px; }
+.toast{ position: fixed; bottom: 10px; left:50%; transform: translateX(-50%); background: #333; color:#fff; padding: 6px 10px; border-radius: 4px; }
+
+/* Emoji panel styling */
+.emoji-panel { display:grid; grid-template-columns: repeat(8, 1fr); gap:6px; }
+.emoji-panel button { background: #f7f7f7; border:1px solid #e5e5e5; border-radius:6px; padding:6px; font-size:18px; width:100%; height:34px; }
+
+/* WeChat-like chat bubbles */
+.bubble { padding: 8px 12px; border-radius: 14px; max-width: 60%; font-size: 14px; line-height: 1.4; transition: transform .15s ease, opacity .15s ease; }
+.bubble.me { background: #07C160; color: white; border-radius: 14px 14px 4px 14px; }
+.bubble.other { background: #fff; border:1px solid #eee; color: #333; border-radius: 14px 14px 14px 4px; }
+.message { display:flex; align-items:flex-end; margin:6px 0; }
+.message.me { justify-content:flex-end; }
+.message .avatar { width:28px; height:28px; border-radius:50%; margin:0 6px; }
+.message .bubble { display:inline-block; }
+
+/* WeChat-like bottom navigation for web */
+.bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 56px; background: white; border-top: 1px solid #eee; display: flex; z-index: 60; }
+.bottom-nav .nav-item { flex:1; text-align:center; line-height:56px; cursor:pointer; color:#555; font-size:14px; }
+.bottom-nav .nav-item.active { color:#07C160; font-weight:600; }
+
+/* Four-screen layout container (fallback styling) */
+.screen { display:none; height: calc(100vh - 56px); overflow:auto; padding:16px; background:white; }
+/* Admin table tweaks */
+#adminTenantTable { border-collapse: collapse; width: 100%; }
+#adminTenantTable th, #adminTenantTable td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+@media (max-width: 900px) {
+  #adminTenantTable thead { display: none; }
+}
+
+/* Mobile friendly tweaks */
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; height: auto; }
+  .mobile-back { display: inline-block; }
+  #mobileBackBtn { display: inline-block; font-size:12px; padding:6px 8px; }
+  /* Emoji panel tweaks on mobile */
+  .emoji-panel { bottom: 60px; left: 8px; right: 8px; width: auto; }
+}

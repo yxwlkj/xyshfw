@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>校园生活助手 -网页版</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4/dist/socket.io.min.js"></script>
+  <script src="/web_app/main_app.js" defer></script>
+  <script src="/web_app/app.js" defer></script>
+</head>
+<body>
+  <div id="loginView" class="login-view" style="display:block; padding:40px; max-width:420px; margin:40px auto; background:#fff; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.08);">
+    <h2 style="text-align:center; color:var(--green);">校园生活助手</h2>
+    <input id="login_user" placeholder="用户名" style="width:100%; padding:12px; margin:8px 0;" />
+    <input id="login_pass" placeholder="密码" type="password" style="width:100%; padding:12px; margin:8px 0;" />
+    <label style="display:block; text-align:left; margin:6px 0 0 0; font-size:12px;">
+      <input id="rememberLogin" type="checkbox"/> 记住登录
+    </label>
+    <button id="login_btn" style="width:100%; padding:12px; background:var(--green); color:#fff; border:none; border-radius:6px;">登录</button>
+    <div id="loginStatus" class="status" style="text-align:center; margin-top:8px;"></div>
+  </div>
+
+  <!-- Admin screen (Patch 7.4 scaffold) -->
+  <div id="screen-admin" class="screen" style="display:none; height: calc(100vh - 56px); overflow:auto; padding:16px; background:white;">
+    <h2>Tenant Admin</h2>
+    <p>Multi-tenant management scaffold. Real data will be wired to backend in a later patch.</p>
+    <button id="adminCreateBtn" style="margin-bottom:12px; padding:8px 12px;">Create Tenant</button>
+    <!-- Admin Login Panel -->
+    <div id="adminLoginPanel" style="border:1px solid #eee; padding:8px; margin-bottom:12px; display:flex; gap:8px; align-items:center;"> 
+      <input id="adminUser" placeholder="Admin username" style="flex:1; padding:6px;"/>
+      <input id="adminPass" placeholder="Password" type="password" style="width:140px; padding:6px;"/>
+      <button id="adminLoginBtn" style="padding:6px 10px;">登录</button>
+      <span id="adminLoginStatus" style="color:#888; font-size:12px;"></span>
+    </div>
+  <table id="adminTenantTable" style="width:100%; border-collapse: collapse;">
+  <thead>
+      <tr><th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Tenant</th><th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Description</th><th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Status</th><th style="text-align:left; padding:6px; border-bottom:1px solid #ddd;">Actions</th></tr>
+    </thead>
+    <tbody id="adminTenantBody"></tbody>
+  <tfoot>
+      <tr id="newTenantRow" style="background:#f9f9f9;">
+        <td><input id="newTenantName" placeholder="New tenant name" style="width:100%; padding:6px;"/></td>
+        <td><input id="newTenantDesc" placeholder="Description" style="width:100%; padding:6px;"/></td>
+        <td>
+          <select id="newTenantStatus" style="width:100%; padding:6px;">
+            <option value="Active" selected>Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </td>
+        <td><button id="newTenantCreateBtn" style="padding:6px 10px;">Create</button></td>
+      </tr>
+    </tfoot>
+  </table>
+  <div id="adminToolbar" style="display:flex; gap:8px; align-items:center; padding:8px 0;">
+    <input id="adminTenantSearch" placeholder="搜索租户（名称/描述）" style="flex:1; padding:6px;"/>
+    <button id="adminTenantSearchBtn" style="padding:6px 10px;">搜索</button>
+    <button id="adminTenantRefreshBtn" style="padding:6px 10px;">刷新</button>
+    <input id="adminTenantSearchId" placeholder="按 ID 检索" style="flex:0 0 180px; padding:6px;"/>
+    <button id="adminTenantSearchIdBtn" style="padding:6px 10px;">按 ID 搜索</button>
+  </div>
+  </div>
+
+  <div id="appView" class="app-view" style="display:none; height:100vh; display:grid; grid-template-columns: 320px 1fr 320px;">
+      <aside class="left" id="conversations" style="border-right:1px solid #eee; overflow:auto; background:white;">
+        <div class="section-title" style="padding:12px 16px; color:#888; display:flex; align-items:center; gap:8px;">
+          <span>会话</span>
+          <input id="searchUsers" placeholder="搜索用户" style="flex:1; padding:6px 8px; border-radius:6px; border:1px solid #ddd; font-size:12px;" />
+          <button id="openSearch" style="padding:6px 8px; border-radius:6px; border:1px solid #ddd; background:#f5f5f5;">搜索</button>
+        </div>
+        <div id="searchPanel" style="display:none; padding:8px 12px; border-top:1px solid #eee;">
+          <div id="searchResults" class="list" style="padding:0; margin:0;"></div>
+        </div>
+      <div class="section-title" style="padding:12px 16px; color:#888;">会话</div>
+      <div id="sessionList" class="list"></div>
+    </aside>
+      <section class="center" id="chatArea" style="display:flex; flex-direction:column; background:#f5f5f5; position:relative;">
+      <div class="chat-header" id="chatHeader" style="background:white; padding:12px; border-bottom:1px solid #eee; text-align:center; font-weight:600;">
+        <span id="chatHeaderTitle">Chat</span>
+        <button id="mobileBackBtn" class="mobile-back" title="Chats" aria-label="Chats" style="display:none; margin-left:8px;">Chats</button>
+      </div>
+      <div id="messages" class="messages" style="flex:1; padding:12px; overflow:auto;"></div>
+      <div class="input-area" style="padding:8px; display:flex; gap:8px; border-top:1px solid #eee; background:white; align-items:center;">
+        <button id="emojiBtn" title="表情" style="padding:6px 10px; border-radius:20px; border:1px solid #ddd; background:#f5f5f5;">😊</button>
+        <input id="messageInput" placeholder="输入消息" style="flex:1; padding:10px; border-radius:20px; border:1px solid #ddd;"/>
+        <button id="sendBtn" style="padding:8px 14px; background:var(--green); color:white; border:none; border-radius:20px;">发送</button>
+      </div>
+      <div id="emojiPanel" class="emoji-panel" style="display:none; position:absolute; bottom:72px; left:8px; background:white; border:1px solid #ddd; border-radius:8px; padding:8px; width:260px;">
+        <!-- Emoji grid will be injected by JS -->
+      </div>
+    </section>
+    <aside class="right" id="tools" style="border-left:1px solid #eee; padding:8px; background:white; overflow:auto;">
+      <div class="section-title" style="padding:12px 8px; color:#888;">快捷操作</div>
+      <button id="scanBtn" style="width:100%; margin:6px 0; padding:10px;">扫一扫</button>
+      <input type="file" id="fileInput" style="width:100%;"/>
+      <button id="uploadBtn" style="width:100%; margin-top:6px; padding:10px;">上传</button>
+    </aside>
+  </div>
+  <!-- Secondary screens for Patch 7.3: full-screen views for Contacts, Discover, Me -->
+  <div id="screen-contacts" class="screen" style="display:none; height: calc(100vh - 56px); overflow:auto; padding:16px; background:white;">
+    <h2>通讯录</h2>
+    <p>这里展示联系人列表的静态占位，与后端数据对接后将动态渲染。</p>
+    <ul>
+      <li>李雷</li>
+      <li>韩梅梅</li>
+      <li>王五</li>
+    </ul>
+  </div>
+  <div id="screen-discover" class="screen" style="display:none; height: calc(100vh - 56px); overflow:auto; padding:16px; background:white;">
+    <h2>发现</h2>
+    <p>这里展示发现页的占位内容，包含动态动态更新、朋友圈等功能待实现。</p>
+  </div>
+  <div id="screen-me" class="screen" style="display:none; height: calc(100vh - 56px); overflow:auto; padding:16px; background:white;">
+    <h2>我</h2>
+    <p>个人资料与设置占位。</p>
+  </div>
+
+  <div id="toast" class="toast" style="display:none; position: fixed; bottom: 12px; left:50%; transform: translateX(-50%); background:#333; color:#fff; padding:8px 12px; border-radius:4px;"></div>
+</body>
+  <div class="bottom-nav" id="bottomNav" style="position:fixed; bottom:0; left:0; width:100%; height:56px; background:white; border-top:1px solid #eee; display:flex; z-index:50;">
+    <div class="nav-item active" data-view="sessions" style="flex:1; text-align:center; line-height:56px; cursor:pointer;"><i class="fa fa-comments" aria-hidden="true"></i><div>会话</div></div>
+    <div class="nav-item" data-view="contacts" style="flex:1; text-align:center; line-height:56px; cursor:pointer;"><i class="fa fa-address-book" aria-hidden="true"></i><div>通讯录</div></div>
+    <div class="nav-item" data-view="discover" style="flex:1; text-align:center; line-height:56px; cursor:pointer;"><i class="fa fa-compass" aria-hidden="true"></i><div>发现</div></div>
+    <div class="nav-item" data-view="me" style="flex:1; text-align:center; line-height:56px; cursor:pointer;"><i class="fa fa-user" aria-hidden="true"></i><div>我</div></div>
+    <div class="nav-item" data-view="admin" style="flex:1; text-align:center; line-height:56px; cursor:pointer;"><i class="fa fa-briefcase" aria-hidden="true"></i><div>Admin</div></div>
+  </div>
+  <script>/* 完整前端逻辑通过 web_app/app.js 与 main_app.js 管理 */</script>
+</body>
+</html>

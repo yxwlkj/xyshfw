@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>最简聊天前端</title></head>
+<body>
+  <h2>最简聊天前端（测试用）</h2>
+  <div>
+    <input id="u" placeholder="用户名"/>
+    <input id="p" placeholder="密码" type="password"/>
+    <button onclick="login()">登录并获取 Token</button>
+  </div>
+  <hr/>
+  <div>
+    <input id="toUid" placeholder="对方UID"/>
+    <input id="text" placeholder="消息内容"/>
+    <button onclick="sendPrivate()">发送私聊</button>
+  </div>
+  <script>
+    const API = 'http://localhost:3000/api';
+    let token = localStorage.getItem('token') || '';
+    async function login(){
+      const uname = document.getElementById('u').value;
+      const pwd = document.getElementById('p').value;
+      const res = await fetch(`${API}/user/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:uname,password:pwd})});
+      const data = await res.json();
+      if(data.code===200){ token = data.data.token; localStorage.setItem('token', token); alert('登录成功'); }
+      else alert('登录失败');
+    }
+    async function sendPrivate(){
+      const toUid = document.getElementById('toUid').value;
+      const text = document.getElementById('text').value;
+      await fetch(`${API}/message/send`,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({chatType:'private', targetId:toUid, content:text, type:'text'})});
+      alert('发送完成');
+    }
+  </script>
+</body>
+</html>
