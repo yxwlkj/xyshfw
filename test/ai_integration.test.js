@@ -1,6 +1,6 @@
-// Skeleton admin end-to-end test (placeholder)
+// Skeleton AI integration test (placeholder)
 const assert = require('assert')
-describe('Admin E2E', function(){
+describe('AI Integration', function(){
   it('placeholder passes', function(){
     assert.ok(true)
   })

@@ -211,6 +211,22 @@ try {
   console.warn('AI assistant router not loaded:', e.message);
 }
 
+// Invite a friend / send invitation (WeChat integration placeholder)
+// Requires user authentication (token) via 'auth' middleware
+app.post('/api/friend/invite', auth, (req, res) => {
+  const { toUid, message } = req.body;
+  if (!toUid) return res.status(400).json({ code: 400, msg: 'toUid 必填' });
+  // insert a friend request (as invite)
+  try {
+    const created = run('INSERT INTO friend_requests (from_uid, to_uid, message) VALUES (?,?,?)', [req.uid, toUid, message || '']);
+    const toSocket = onlineUsers.get(toUid);
+    if (toSocket) io.to(toSocket).emit('new_friend_request', { fromUid: req.uid, message: message || '' });
+    res.json({ code: 200, msg: '邀请发送成功', data: { requestId: created.lastID } });
+  } catch (e) {
+    res.json({ code: 500, msg: '邀请发送失败', error: e.message });
+  }
+});
+
 // Role-based access control for Admin routes
 function requireAdminRole(roles) {
   // roles: array of allowed role strings

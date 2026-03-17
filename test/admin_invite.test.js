@@ -1,6 +1,6 @@
-// Skeleton admin end-to-end test (placeholder)
+// Skeleton admin invite test (placeholder)
 const assert = require('assert')
-describe('Admin E2E', function(){
+describe('Admin Invite', function(){
   it('placeholder passes', function(){
     assert.ok(true)
   })
